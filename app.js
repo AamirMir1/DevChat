@@ -8,6 +8,11 @@ import { createServer } from "http";
 import { v4 as uuid } from "uuid";
 import cors from "cors";
 import { v2 as cloudinary } from "cloudinary";
+
+// MongoDB awake rakhne ke liye imports
+import cron from "node-cron";
+import mongoose from "mongoose";
+
 import {
   CHAT_JOINED,
   CHAT_LEAVED,
@@ -43,6 +48,21 @@ const onlineUsers = new Set();
 
 connectDB(mongoURI);
 
+// ==========================================
+// CRON JOB TO KEEP MONGODB AWAKE (Har 12 ghante baad)
+// ==========================================
+cron.schedule("0 */12 * * *", async () => {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      await mongoose.connection.db.admin().ping();
+      console.log("Cron Job: Pinged MongoDB Atlas to keep it active.");
+    }
+  } catch (error) {
+    console.error("Cron Job Error: Failed to ping MongoDB", error);
+  }
+});
+// ==========================================
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -70,7 +90,7 @@ io.use((socket, next) => {
   cookieParser()(
     socket.request,
     socket.request.res,
-    async (err) => await socketAuthenticator(err, socket, next)
+    async (err) => await socketAuthenticator(err, socket, next),
   );
 });
 
@@ -146,10 +166,10 @@ app.use(errorMiddleware);
 
 app.use(express.static(path.join(__dirname, "./frontend/dist")));
 app.get("*", (req, res) => {
-  res.sendFile(path.resolve(__dirname, "./frontend/dist/index.html")),
+  (res.sendFile(path.resolve(__dirname, "./frontend/dist/index.html")),
     (err) => {
       res.status(500).send(err);
-    };
+    });
 });
 
 server.listen(port, () => {
