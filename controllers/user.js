@@ -110,12 +110,12 @@ const sendFriendRequest = TryCatch(async (req, res, next) => {
     ],
   });
 
-  if (request) return next(new ErrorHandler("Request already sent", 400));
-
-  await Request.create({
-    sender: req.user,
-    receiver: userId,
-  });
+  if (!request) {
+    await Request.create({
+      sender: req.user,
+      receiver: userId,
+    });
+  }
 
   emitEvent(req, NEW_REQUEST, [userId]);
 
@@ -136,7 +136,7 @@ const acceptFriendRequest = TryCatch(async (req, res, next) => {
 
   if (request.receiver._id.toString() !== req.user.toString())
     return next(
-      new ErrorHandler("You are not authorized to accept this request", 401)
+      new ErrorHandler("You are not authorized to accept this request", 401),
     );
 
   if (!accept) {
@@ -170,7 +170,7 @@ const acceptFriendRequest = TryCatch(async (req, res, next) => {
 const getMyNotifications = TryCatch(async (req, res) => {
   const requests = await Request.find({ receiver: req.user }).populate(
     "sender",
-    "name avatar"
+    "name avatar",
   );
 
   const allRequests = requests.map(({ _id, sender }) => ({
@@ -210,7 +210,7 @@ const getMyFriends = TryCatch(async (req, res) => {
     const chat = await Chat.findById(chatId);
 
     const availableFriends = friends.filter(
-      (friend) => !chat.members.includes(friend._id)
+      (friend) => !chat.members.includes(friend._id),
     );
 
     return res.status(200).json({
